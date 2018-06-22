@@ -1,0 +1,5 @@
+ipch
+*.sdf
+*.suo
+Debug
+Calibration/Debug
