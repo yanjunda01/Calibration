@@ -43,4 +43,6 @@ private:
 private:
 	void CString2char(CString cstr, char* str, int len/*length of str*/);
 
+public:
+	afx_msg void OnBnClickedOpenCalibration();
 };

@@ -68,6 +68,7 @@ BEGIN_MESSAGE_MAP(CCalibrationDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK2, &CCalibrationDlg::OnBnClickedRightImage)
 	ON_BN_CLICKED(IDOK, &CCalibrationDlg::OnBnClickedLeftImage)
 	ON_BN_CLICKED(IDOK3, &CCalibrationDlg::OnBnClickedGo)
+	ON_BN_CLICKED(IDOK4, &CCalibrationDlg::OnBnClickedOpenCalibration)
 END_MESSAGE_MAP()
 
 
@@ -257,7 +258,7 @@ void CCalibrationDlg::OnBnClickedLeftImage()
 		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_LEFT);
 		pStatic->SetWindowText(FilePathNameLeft);
 		strFileLeft = (char*)malloc(FilePathNameLeft.GetLength() + 1);
-		CString2char(FilePathNameLeft, strFileLeft, sizeof(strFileLeft));
+		CString2char(FilePathNameLeft, strFileLeft, FilePathNameLeft.GetLength() + 1);
 	}
 }
 
@@ -269,7 +270,8 @@ void CCalibrationDlg::OnBnClickedRightImage()
 		FilePathNameRight = dlg.GetPathName();
 		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_RIGHT);
 		pStatic->SetWindowText(FilePathNameRight);
-		strFileRight = (char*)FilePathNameRight.GetBuffer(FilePathNameRight.GetLength());
+		strFileRight = (char*)malloc(FilePathNameRight.GetLength() + 1);
+		CString2char(FilePathNameRight, strFileRight, FilePathNameRight.GetLength() + 1);
 	}
 }
 
@@ -277,26 +279,26 @@ void CCalibrationDlg::OnBnClickedGo()
 {
 	char * device = "deviceID";
 	MR_ENGINE m_hDPADEngine = 0;
-	MUInt8* leftNV21 = 0;
+	MUInt8* leftnv21 = 0;
 	MUInt8* rightnv21 = 0;
 
 	if (strFileLeft == 0 || strFileRight == 0)
 	{
 		MessageBox(L"no file selected");
-		return;
+		goto ERRRETURN;
 	}
 	char strFileSufix[8];
 	get_file_sufix(strFileLeft, strFileSufix);
-	if (strcmp(strFileSufix, "nv21") == 0 || strcmp(strFileSufix, "NV21") == 0)
+	if (strcmp(strFileSufix, "nv21") != 0 && strcmp(strFileSufix, "NV21") != 0)
 	{
 		MessageBox(L"not support left image, must nv21");
-		return;
+		goto ERRRETURN;
 	}
 	get_file_sufix(strFileRight, strFileSufix);
-	if (strcmp(strFileSufix, "nv21") == 0 || strcmp(strFileSufix, "NV21") == 0)
+	if (strcmp(strFileSufix, "nv21") != 0 && strcmp(strFileSufix, "NV21") != 0)
 	{
 		MessageBox(L"not support right image, must nv21");
-		return;
+		goto ERRRETURN;
 	}
 
 	int wh[2] = { 0 };
@@ -310,15 +312,15 @@ void CCalibrationDlg::OnBnClickedGo()
 	int auxHeight = wh[1];
 	int auxLength = get_file_size(strFileRight);
 
-	leftNV21 = (MUInt8*)malloc(mainLength);
+	leftnv21 = (MUInt8*)malloc(mainLength);
 	rightnv21 = (MUInt8*)malloc(auxLength);
 
-	FILE* cleftfp = fopen(strFileLeft, "rb");
-	FILE* crightfp = fopen(strFileRight, "rb");
-	fread(leftNV21, 1, mainLength, cleftfp);
-	fread(rightnv21, 1, auxLength, crightfp);
-	fclose(cleftfp);
-	fclose(crightfp);
+	FILE* leftfp = fopen(strFileLeft, "rb");
+	FILE* rightfp = fopen(strFileRight, "rb");
+	fread(leftnv21, 1, mainLength, leftfp);
+	fread(rightnv21, 1, auxLength, rightfp);
+	fclose(leftfp);
+	fclose(rightfp);
 
 	ASVLOFFSCREEN leftoffscreen;
 	ASVLOFFSCREEN rightoffscreen;
@@ -331,7 +333,7 @@ void CCalibrationDlg::OnBnClickedGo()
 	leftoffscreen.u32PixelArrayFormat = ASVL_PAF_NV21;
 	leftoffscreen.pi32Pitch[0] = mainWidth;
 	leftoffscreen.pi32Pitch[1] = mainWidth;
-	leftoffscreen.ppu8Plane[0] = leftNV21;
+	leftoffscreen.ppu8Plane[0] = leftnv21;
 	leftoffscreen.ppu8Plane[1] = leftoffscreen.ppu8Plane[0] + leftoffscreen.pi32Pitch[0] * leftoffscreen.i32Height;
 
 	rightoffscreen.i32Width = auxWidth;
@@ -367,7 +369,7 @@ void CCalibrationDlg::OnBnClickedGo()
 		}
 #endif
 		static int ii = 0;
-		int index = strrchr(strFileLeft, '\\') - strFileLeft;	//index of '\\'
+		int index = strrchr(strFileLeft, '\\') - strFileLeft;	//index of '\\', based on 0
 		if (index <= 0)
 		{
 			//not found
@@ -377,7 +379,7 @@ void CCalibrationDlg::OnBnClickedGo()
 		else
 		{
 			char folder[64];
-			substr(folder, strFileLeft, 0, index);
+			substr(folder, strFileLeft, 0, index+1/*length*/);
 			char binPath[64];
 			sprintf(binPath, "%scalibration_%d.bin", folder, ii);
 			FILE* fp = fopen(binPath, "wb");
@@ -400,10 +402,26 @@ ERRRETURN:
 		m_hDPADEngine = 0;
 	}
 
-	free(rightnv21);
-	free(leftNV21);
-	rightnv21 = 0;
-	leftNV21 = 0;
+	if (leftnv21 != 0)
+	{
+		free(leftnv21);
+		leftnv21 = 0;
+	}
+	if (rightnv21 != 0)
+	{
+		free(rightnv21);
+		rightnv21 = 0;
+	}
+	if (strFileLeft != 0)
+	{
+		free(strFileLeft);
+		strFileLeft = 0;
+	}
+	if (strFileRight != 0)
+	{
+		free(strFileRight);
+		strFileRight = 0;
+	}
 }
 void CCalibrationDlg::CString2char(CString cstr, char* str, int len/*length of str*/)
 {
@@ -420,3 +438,54 @@ void CCalibrationDlg::CString2char(CString cstr, char* str, int len/*length of s
 	str[i] = '\0';
 }
 
+
+
+void CCalibrationDlg::OnBnClickedOpenCalibration()
+{
+	CFileDialog dlg(TRUE);///TRUE为OPEN对话框，FALSE为SAVE AS对话框
+	if (dlg.DoModal() == IDOK)
+	{
+		CString str = dlg.GetPathName();
+		char* strFileCalibration = (char*)malloc(str.GetLength() + 1);
+		CString2char(str, strFileCalibration, str.GetLength() + 1);
+		int len = get_file_size(strFileCalibration);
+		if (len != 2048)
+		{
+			MessageBox(L"not calibration file");
+			goto ERRRETURN;
+		}
+
+		char* byteCalibration = (char*)malloc(len);
+		FILE* fp = fopen(strFileCalibration, "rb");
+		fread(byteCalibration, 1, len, fp);
+		fclose(fp);
+
+		MRESULT res = MOK;
+		MHandle hReader = MNull;
+		res = ArcCalibDataReaderInit((MByte*)byteCalibration, len, &hReader);
+
+		if (hReader != MNull)
+		{
+			double rx = 9999.9, ry = 9999.9, rz = 9999.9, shiftX = 9999.9, shiftY = 9999.9;
+
+			res = ArcCalibDataReaderGetParam(hReader, RET_PARAMS_ROTATION_X, &rx);
+			res = ArcCalibDataReaderGetParam(hReader, RET_PARAMS_ROTATION_Y, &ry);
+			res = ArcCalibDataReaderGetParam(hReader, RET_PARAMS_ROTATION_Z, &rz);
+			res = ArcCalibDataReaderGetParam(hReader, RET_PARAMS_SHIFT_X, &shiftX);
+			res = ArcCalibDataReaderGetParam(hReader, RET_PARAMS_SHIFT_Y, &shiftY);
+			CStatic *pStatic = (CStatic*)GetDlgItem(IDC_INFO);
+			CString strInfo;
+			strInfo.Format(_T("ROTATION_X:%lf ROTATION_Y:%lf ROTATION_Z:%lf SHIFT_X:%lf SHIFT_Y:%lf"), rx, ry, rz, shiftX, shiftY);
+			pStatic->SetWindowText(strInfo);
+			ArcCalibDataReaderUninit(hReader);
+			hReader = MNull;
+		}
+
+	ERRRETURN:
+		if (strFileCalibration != 0)
+		{
+			free(strFileCalibration);
+			strFileCalibration = 0;
+		}
+	}
+}
