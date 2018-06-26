@@ -392,7 +392,7 @@ void CCalibrationDlg::OnBnClickedGo()
 	{
 		char error[32];
 		sprintf(error, "error = %d", ret);
-		MessageBox((LPCTSTR)ret);
+		MessageBox((LPCTSTR)error);
 	}
 
 ERRRETURN:
@@ -437,8 +437,6 @@ void CCalibrationDlg::CString2char(CString cstr, char* str, int len/*length of s
 	}
 	str[i] = '\0';
 }
-
-
 
 void CCalibrationDlg::OnBnClickedOpenCalibration()
 {
