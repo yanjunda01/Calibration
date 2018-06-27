@@ -35,14 +35,15 @@ public:
 	afx_msg void OnBnClickedGo();
 
 private:
-	CString FilePathNameLeft;
-	CString FilePathNameRight;
 	char* strFileLeft;
 	char* strFileRight;
+	char* strFileCalibration;
 
 private:
 	void CString2char(CString cstr, char* str, int len/*length of str*/);
 
 public:
 	afx_msg void OnBnClickedOpenCalibration();
+	afx_msg void OnBnClickedOpenCalibrationFile();
+	afx_msg void OnBnClickedVerification();
 };

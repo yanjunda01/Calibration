@@ -5,6 +5,8 @@
 #define IDOK2                           3
 #define IDOK3                           4
 #define IDOK4                           5
+#define IDOK5                           6
+#define IDOK6                           7
 #define IDM_ABOUTBOX                    0x0010
 #define IDD_ABOUTBOX                    100
 #define IDS_ABOUTBOX                    101
@@ -13,6 +15,7 @@
 #define IDC_LEFT                        1000
 #define IDC_RIGHT                       1001
 #define IDC_INFO                        1002
+#define IDC_CALIBRATION_FILE            1003
 
 // Next default values for new objects
 // 

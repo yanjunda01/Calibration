@@ -8,6 +8,7 @@
 #include "afxdialogex.h"
 
 #include "arcsoft_calibration.h"
+#include "arcsoft_verification.h"
 #include "string.h"
 
 #ifdef _DEBUG
@@ -69,6 +70,8 @@ BEGIN_MESSAGE_MAP(CCalibrationDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &CCalibrationDlg::OnBnClickedLeftImage)
 	ON_BN_CLICKED(IDOK3, &CCalibrationDlg::OnBnClickedGo)
 	ON_BN_CLICKED(IDOK4, &CCalibrationDlg::OnBnClickedOpenCalibration)
+	ON_BN_CLICKED(IDOK5, &CCalibrationDlg::OnBnClickedOpenCalibrationFile)
+	ON_BN_CLICKED(IDOK6, &CCalibrationDlg::OnBnClickedVerification)
 END_MESSAGE_MAP()
 
 
@@ -254,7 +257,7 @@ void CCalibrationDlg::OnBnClickedLeftImage()
 	CFileDialog dlg(TRUE);///TRUE为OPEN对话框，FALSE为SAVE AS对话框
 	if (dlg.DoModal() == IDOK)
 	{
-		FilePathNameLeft = dlg.GetPathName();
+		CString FilePathNameLeft = dlg.GetPathName();
 		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_LEFT);
 		pStatic->SetWindowText(FilePathNameLeft);
 		strFileLeft = (char*)malloc(FilePathNameLeft.GetLength() + 1);
@@ -267,7 +270,7 @@ void CCalibrationDlg::OnBnClickedRightImage()
 	CFileDialog dlg(TRUE);///TRUE为OPEN对话框，FALSE为SAVE AS对话框
 	if (dlg.DoModal() == IDOK)
 	{
-		FilePathNameRight = dlg.GetPathName();
+		CString FilePathNameRight = dlg.GetPathName();
 		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_RIGHT);
 		pStatic->SetWindowText(FilePathNameRight);
 		strFileRight = (char*)malloc(FilePathNameRight.GetLength() + 1);
@@ -277,7 +280,7 @@ void CCalibrationDlg::OnBnClickedRightImage()
 
 void CCalibrationDlg::OnBnClickedGo()
 {
-	char * device = "deviceID";
+	char* device = "deviceID";
 	MR_ENGINE m_hDPADEngine = 0;
 	MUInt8* leftnv21 = 0;
 	MUInt8* rightnv21 = 0;
@@ -350,10 +353,10 @@ void CCalibrationDlg::OnBnClickedGo()
 
 	ArcCalibrationParameters configureP;
 	memset(&configureP, 0, sizeof(ArcCalibrationParameters));
-	configureP.blockSize = 15;	//15x15cm
+	configureP.blockSize = 15;	//15x15mm
 	configureP.chessboardWidth = 19;//请按照实际chart规格填写，棋盘格横向方块个数
 	configureP.chessboardHeight = 14;
-	configureP.numberOfChessboards = 4;
+	configureP.numberOfChessboards = 4;	//四个象限
 	configureP.leftImg = &leftoffscreen;
 	configureP.rightImg = &rightoffscreen;
 	long ret = MR_ModuleCalibration(m_hDPADEngine, &configureP, byteResult, &nLength, device);
@@ -444,9 +447,9 @@ void CCalibrationDlg::OnBnClickedOpenCalibration()
 	if (dlg.DoModal() == IDOK)
 	{
 		CString str = dlg.GetPathName();
-		char* strFileCalibration = (char*)malloc(str.GetLength() + 1);
-		CString2char(str, strFileCalibration, str.GetLength() + 1);
-		int len = get_file_size(strFileCalibration);
+		char* strFileCali = (char*)malloc(str.GetLength() + 1);
+		CString2char(str, strFileCali, str.GetLength() + 1);
+		int len = get_file_size(strFileCali);
 		if (len != 2048)
 		{
 			MessageBox(L"not calibration file");
@@ -454,7 +457,7 @@ void CCalibrationDlg::OnBnClickedOpenCalibration()
 		}
 
 		char* byteCalibration = (char*)malloc(len);
-		FILE* fp = fopen(strFileCalibration, "rb");
+		FILE* fp = fopen(strFileCali, "rb");
 		fread(byteCalibration, 1, len, fp);
 		fclose(fp);
 
@@ -480,10 +483,163 @@ void CCalibrationDlg::OnBnClickedOpenCalibration()
 		}
 
 	ERRRETURN:
-		if (strFileCalibration != 0)
+		if (strFileCali != 0)
 		{
-			free(strFileCalibration);
-			strFileCalibration = 0;
+			free(strFileCali);
+			strFileCali = 0;
 		}
+	}
+}
+
+
+void CCalibrationDlg::OnBnClickedOpenCalibrationFile()
+{
+	CFileDialog dlg(TRUE);///TRUE为OPEN对话框，FALSE为SAVE AS对话框
+	if (dlg.DoModal() == IDOK)
+	{
+		CString str = dlg.GetPathName();
+		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_RIGHT);
+		pStatic->SetWindowText(str);
+		strFileCalibration = (char*)malloc(str.GetLength() + 1);
+		CString2char(str, strFileCalibration, str.GetLength() + 1);
+	}
+}
+
+
+void CCalibrationDlg::OnBnClickedVerification()
+{
+	MUInt8* leftnv21 = 0;
+	MUInt8* rightnv21 = 0;
+	MC_ENGINE m_hDPCTEngine = 0;
+	char* byteCalibration = 0;
+
+	if (strFileLeft == 0 || strFileRight == 0 || strFileCalibration == 0)
+	{
+		MessageBox(L"no file selected");
+		goto ERRRETURN;
+	}
+	char strFileSufix[8];
+	get_file_sufix(strFileLeft, strFileSufix);
+	if (strcmp(strFileSufix, "nv21") != 0 && strcmp(strFileSufix, "NV21") != 0)
+	{
+		MessageBox(L"not support left image, must nv21");
+		goto ERRRETURN;
+	}
+	get_file_sufix(strFileRight, strFileSufix);
+	if (strcmp(strFileSufix, "nv21") != 0 && strcmp(strFileSufix, "NV21") != 0)
+	{
+		MessageBox(L"not support right image, must nv21");
+		goto ERRRETURN;
+	}
+
+	int wh[2] = { 0 };
+	guessFileWH(strFileLeft, wh);
+	int mainWidth = wh[0];
+	int mainHeight = wh[1];
+	int mainLength = get_file_size(strFileLeft);
+
+	guessFileWH(strFileRight, wh);
+	int auxWidth = wh[0];
+	int auxHeight = wh[1];
+	int auxLength = get_file_size(strFileRight);
+
+	leftnv21 = (MUInt8*)malloc(mainLength);
+	rightnv21 = (MUInt8*)malloc(auxLength);
+
+	FILE* leftfp = fopen(strFileLeft, "rb");
+	FILE* rightfp = fopen(strFileRight, "rb");
+	fread(leftnv21, 1, mainLength, leftfp);
+	fread(rightnv21, 1, auxLength, rightfp);
+	fclose(leftfp);
+	fclose(rightfp);
+
+	ASVLOFFSCREEN leftoffscreen;
+	ASVLOFFSCREEN rightoffscreen;
+
+	memset(&leftoffscreen, 0, sizeof(ASVLOFFSCREEN));
+	memset(&rightoffscreen, 0, sizeof(ASVLOFFSCREEN));
+
+	leftoffscreen.i32Width = mainWidth;
+	leftoffscreen.i32Height = mainHeight;
+	leftoffscreen.u32PixelArrayFormat = ASVL_PAF_NV21;
+	leftoffscreen.pi32Pitch[0] = mainWidth;
+	leftoffscreen.pi32Pitch[1] = mainWidth;
+	leftoffscreen.ppu8Plane[0] = leftnv21;
+	leftoffscreen.ppu8Plane[1] = leftoffscreen.ppu8Plane[0] + leftoffscreen.pi32Pitch[0] * leftoffscreen.i32Height;
+
+	rightoffscreen.i32Width = auxWidth;
+	rightoffscreen.i32Height = auxHeight;
+	rightoffscreen.u32PixelArrayFormat = ASVL_PAF_NV21;
+	rightoffscreen.pi32Pitch[0] = auxWidth;
+	rightoffscreen.pi32Pitch[1] = auxWidth;
+	rightoffscreen.ppu8Plane[0] = rightnv21;
+	rightoffscreen.ppu8Plane[1] = rightoffscreen.ppu8Plane[0] + rightoffscreen.pi32Pitch[0] * rightoffscreen.i32Height;
+	char * device = "deviceID";
+
+	m_hDPCTEngine = MC_CreateEngine();
+
+	int len = get_file_size(strFileCalibration);
+	if (len != 2048)
+	{
+		MessageBox(L"not calibration file");
+		goto ERRRETURN;
+	}
+
+	byteCalibration = (char*)malloc(len);
+	FILE* fp = fopen(strFileCalibration, "rb");
+	fread(byteCalibration, 1, len, fp);
+	fclose(fp);
+
+	ArcStereoImageData imagedata;
+	memset(&imagedata, 0, sizeof(ArcStereoImageData));
+	imagedata.chessboardWidth = 19; //请按照实际chart规格填写，棋盘格横向方块个数
+	imagedata.chessboardHeight = 14; //请按照实际chart规格填写，棋盘格纵向方块个数
+	imagedata.leftImg = &leftoffscreen;
+	imagedata.rightImg = &rightoffscreen;
+	MDouble errs[VERIFY_RES_SIZE] = { 0 };
+	int ret = MC_ModuleVerification(m_hDPCTEngine, &imagedata, (MByte*)byteCalibration, errs, device);
+	if (ret == MOK)
+	{
+		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_INFO);
+		CString strInfo;
+		strInfo.Format(_T("AVERAGE:%lf MAX:%lf RANGE:%lf"), errs[VERIFY_INDEX_AVERAGE_ERR], errs[VERIFY_INDEX_MAX_ERR], errs[VERIFY_INDEX_ERR_RANGE]);
+		pStatic->SetWindowText(strInfo);
+	}
+
+ERRRETURN:
+	if (m_hDPCTEngine)
+	{
+		MC_DestroyEngine(m_hDPCTEngine);
+		m_hDPCTEngine = NULL;
+	}
+	if (leftnv21 != 0)
+	{
+		free(leftnv21);
+		leftnv21 = 0;
+	}
+	if (rightnv21 != 0)
+	{
+		free(rightnv21);
+		rightnv21 = 0;
+	}
+	if (strFileLeft != 0)
+	{
+		free(strFileLeft);
+		strFileLeft = 0;
+	}
+	if (strFileRight != 0)
+	{
+		free(strFileRight);
+		strFileRight = 0;
+	}
+	if (strFileCalibration != 0)
+	{
+		free(strFileCalibration);
+		strFileCalibration = 0;
+	}
+	if (byteCalibration != 0)
+	{
+		free(byteCalibration);
+		byteCalibration = 0;
 	}
 }
