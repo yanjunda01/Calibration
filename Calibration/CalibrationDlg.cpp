@@ -498,13 +498,12 @@ void CCalibrationDlg::OnBnClickedOpenCalibrationFile()
 	if (dlg.DoModal() == IDOK)
 	{
 		CString str = dlg.GetPathName();
-		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_RIGHT);
+		CStatic *pStatic = (CStatic*)GetDlgItem(IDC_CALIBRATION_FILE);
 		pStatic->SetWindowText(str);
 		strFileCalibration = (char*)malloc(str.GetLength() + 1);
 		CString2char(str, strFileCalibration, str.GetLength() + 1);
 	}
 }
-
 
 void CCalibrationDlg::OnBnClickedVerification()
 {
@@ -604,6 +603,12 @@ void CCalibrationDlg::OnBnClickedVerification()
 		CString strInfo;
 		strInfo.Format(_T("AVERAGE:%lf MAX:%lf RANGE:%lf"), errs[VERIFY_INDEX_AVERAGE_ERR], errs[VERIFY_INDEX_MAX_ERR], errs[VERIFY_INDEX_ERR_RANGE]);
 		pStatic->SetWindowText(strInfo);
+	}
+	else
+	{
+		CString str;
+		str.Format(_T("error = %d"), ret);
+		MessageBox(str);
 	}
 
 ERRRETURN:
